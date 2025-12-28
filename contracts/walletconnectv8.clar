@@ -1,66 +1,57 @@
 ;; --------------------------------------------------
-;; LEVEL 7 - FIX (Functional NFT & Tipping)
+;; LEVEL 7 - THE FINAL VERSION (STRICT & TESTED)
 ;; --------------------------------------------------
 
-;; Definición del NFT
-(define-non-fungible-token MEMBERSHIP-NFT uint)
+;; 1. Definir el NFT
+(define-non-fungible-token VIP-CARD uint)
 
-;; Variables de estado
+;; 2. Variables de estado
 (define-data-var last-id uint u0)
 (define-data-var contract-owner principal tx-sender)
 
-;; Mapas
+;; 3. Mapas
 (define-map donations principal uint)
-(define-map has-minted-nft principal bool)
+(define-map has-nft principal bool)
 
 ;; --- Funciones Públicas ---
 
-;; 1. DONAR (Ahora usa un flujo más robusto)
+;; Función para donar y ser VIP
 (define-public (donate (amount uint))
-    (let (
-        (sender tx-sender)
-        (current-donations (default-to u0 (map-get? donations sender)))
-    )
-        ;; Validar que el monto sea mayor a 0
-        (asserts! (> amount u0) (err u100))
-        
-        ;; Transferir STX al dueño del contrato
-        (try! (stx-transfer? amount sender (var-get contract-owner)))
-        
-        ;; Actualizar el mapa de donaciones
-        (map-set donations sender (+ current-donations amount))
+    (begin
+        ;; Transferencia de STX
+        (try! (stx-transfer? amount tx-sender (var-get contract-owner)))
+        ;; Guardar la donación
+        (map-set donations tx-sender (+ (default-to u0 (map-get? donations tx-sender)) amount))
         (ok true)
     )
 )
 
-;; 2. RECLAMAR NFT (Corregida la validación)
+;; Función para reclamar el NFT
 (define-public (claim-membership)
-    (let (
-        (sender tx-sender)
-        (total-donated (default-to u0 (map-get? donations sender)))
-        (next-id (+ (var-get last-id) u1))
-    )
-        ;; Check 1: ¿Ha llegado a 10 STX (10,000,000 uSTX)?
-        (asserts! (>= total-donated u10000000) (err u403))
+    (let 
+        (
+            (sender tx-sender)
+            (total (default-to u0 (map-get? donations sender)))
+            (new-id (+ (var-get last-id) u1))
+        )
+        ;; Requisitos: +10 STX y no tener el NFT
+        (asserts! (>= total u10000000) (err u403))
+        (asserts! (is-none (map-get? has-nft sender)) (err u406))
         
-        ;; Check 2: ¿Ya tiene el NFT?
-        (asserts! (is-none (map-get? has-minted-nft sender)) (err u406))
-
-        ;; Mintear el NFT
-        (try! (nft-mint? MEMBERSHIP-NFT next-id sender))
+        ;; Minteo
+        (try! (nft-mint? VIP-CARD new-id sender))
         
         ;; Actualizar estado
-        (var-set last-id next-id)
-        (map-set has-minted-nft sender true)
-        (ok next-id)
+        (var-set last-id new-id)
+        (map-set has-nft sender true)
+        (ok new-id)
     )
 )
 
-;; --- Funciones de Lectura para AppKit ---
-
+;; --- Funciones de Lectura ---
 (define-read-only (get-user-data (user principal))
     {
-        total-stx: (default-to u0 (map-get? donations user)),
-        is-member: (default-to false (map-get? has-minted-nft user))
+        total-donated: (default-to u0 (map-get? donations user)),
+        has-nft: (default-to false (map-get? has-nft user))
     }
 )
