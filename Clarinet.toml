@@ -1,12 +1,13 @@
 [project]
-name = "blank-project"
-description = "Create a project from scratch: Start from a blank scaffold for your next Clarity contract"
+name = "walletconnectv8"
 authors = []
+description = ""
 telemetry = true
-cache_dir = "./.cache"
+requirements = []
 
-# [contracts.CHANGE-THIS-TO-YOUR-CONTRACT-NAME]
-# path = "contracts/CHANGE-THIS-TO-YOUR-CONTRACT-NAME.clar"
+[contracts.walletconnectv8]
+path = "contracts/walletconnectv8.clar"
+clarity_version = 2
 
 [repl.analysis]
 passes = ["check_checker"]
